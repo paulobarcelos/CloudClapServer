@@ -1,0 +1,7 @@
+{
+  "name": "cloudclap-server",
+  "version": "0.0.1",
+  "dependencies": {
+    "socket.io": "x"
+  }
+}
