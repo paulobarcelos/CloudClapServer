@@ -21,7 +21,13 @@ var ClientSchema = new mongoose.Schema({
 		type: String
 	}
 });
-var ClientModel = mongoose.model('Model', ClientSchema);
+var ClientModel = mongoose.model('Client', ClientSchema);
+var CLIENT_TYPES = {
+	USER : 'User',
+	PLAYER : 'Player',
+	NOTIFIER : 'Notifier'
+
+};
 var InteractionSchema = new mongoose.Schema({
 	created: { 
 		type: Date,
@@ -35,7 +41,7 @@ var InteractionSchema = new mongoose.Schema({
 	},
 	meta: { 
 		type: String
-	},
+	}
 });
 var InteractionModel = mongoose.model('Interaction', InteractionSchema);
 
@@ -75,6 +81,7 @@ var User = function(id, players) {
 		emitToPlayers('Execute Booh');
 	}
 	var question = function(data) {
+		data.user = uuid;
 		io.sockets.emit('Answer Question', data);
 	}
 
@@ -244,7 +251,7 @@ var reclaimUser = function(id){
 var reclaimPlayer = function(id){
 	var player;
 	for (var i = 0; i < players.length; i++) {
-		if ( (!id && !players[i].id) || (id && players[i].id == id)){
+		if ( (!id && !players[i].uuid) || (id && players[i].uuid == id)){
 			player = players[i];
 			break;
 		}
