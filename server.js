@@ -1,3 +1,5 @@
+var port = parseInt(process.env.PORT) || 5000;
+console.log('port ' + port);
 var io = require('socket.io').listen(parseInt(process.env.PORT) || 5000);
 io.set('log level', 1);
 var mongoose = require('mongoose');
