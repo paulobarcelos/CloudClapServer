@@ -179,17 +179,17 @@ io.sockets.on('connection', function (socket) {
 		};
 	});
 
-	socket.on('interaction-query', function(data) {
-		queryModel('interaction-query', socket, InteractionModel, data);
+	socket.on('interaction-query', function(query, acknowledgement) {
+		queryModel('interaction-query', socket, InteractionModel, query, acknowledgement);
 	});
-	socket.on('interaction-query-count', function(data) {
-		queryCountModel('interaction-query-count', socket, InteractionModel, data);
+	socket.on('interaction-query-count', function(query, acknowledgement) {
+		queryCountModel('interaction-query-count', socket, InteractionModel, query, acknowledgement);
 	});
-	socket.on('client-query', function(data) {
-		queryModel('interaction-query', socket, ClientModel, data);
+	socket.on('client-query', function(query, acknowledgement) {
+		queryModel('interaction-query', socket, ClientModel, query, acknowledgement);
 	});
-	socket.on('client-query-count', function(data) {
-		queryCountModel('client-query-count', socket, ClientModel, data);
+	socket.on('client-query-count', function(query) {
+		queryCountModel('client-query-count', socket, ClientModel, query, acknowledgement);
 	});
 
 	
@@ -199,7 +199,7 @@ var clearGuaranteedReports = function(){
 	console.log(guaranteedReports, confirmedReportsIds);
 	for(var reportId in guaranteedReports){
 		var report = guaranteedReports[reportId];
-		//if(!confirmedReportsIds) 
+		if(!confirmedReportsIds) 
 			reportToSingleListener(report.uuid, report.event, report.data);
 		delete guaranteedReports[reportId];
 	}
@@ -207,24 +207,26 @@ var clearGuaranteedReports = function(){
 }
 clearGuaranteedReports();
 
-var queryModel = function(event, socket, Model, query){
+var queryModel = function(event, socket, Model, query, acknowledgement){
 	if(!query) query = {};
 	Model.find(query, function (err, results) {
 		if(!err && results ){
 			console.log('MONGOOSE: query success', query);
 			socket.emit(event, results)
+			if(acknowledgement) acknowledgement(results);
 		}
 		else{
 			console.log('MONGOOSE: query error', query);
 		}
 	});
 }
-var queryCountModel = function(event, socket, Model, query){
+var queryCountModel = function(event, socket, Model, query, acknowledgement){
 	if(!query) query = {};
 	InteractionModel.count(query, function (err, count) {
 		if(!err ){
 			console.log('MONGOOSE: count success', query);
 			socket.emit(event, count)
+			if(acknowledgement) acknowledgement(count);
 		}
 		else{
 			console.log('MONGOOSE: count error', query);
@@ -243,15 +245,15 @@ var reportToSingleListener = function(uuid, event, data){
 	if(!listeners[event]) return;
 
 	var reportId = GUARANTEED_REPORTS_ID_FACTORY++;
-	//setTimeout(function(){
-	//	if(!confirmedReportsIds[reportId]){
+	var reportTimeout = setTimeout(function(){
+		if(!confirmedReportsIds[reportId]){
 			guaranteedReports[reportId] = {
 				uuid:uuid,
 				event:event,
 				data:data
 			}
-	//	}		
-	//}, 3000);
+		}		
+	}, 3000);
 	
 
 	if(!listeners[event][uuid]) return;
@@ -259,8 +261,9 @@ var reportToSingleListener = function(uuid, event, data){
 
 	listeners[event][uuid].socket.emit(event, data, function(data){
 		// if this runs, we are sure the message was received
-		//confirmedReportsIds[reportId] = true;
-		//if(guaranteedReports[reportId]) 
+		confirmedReportsIds[reportId] = true;
+		clearTimeout(reportTimeout);
+		if(guaranteedReports[reportId]) 
 			delete guaranteedReports[reportId];
 		
 	});
