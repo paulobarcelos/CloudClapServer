@@ -247,7 +247,7 @@ var reportToSingleListener = function(uuid, event, data){
 	if(!listeners[event]) return;
 
 	var reportId = GUARANTEED_REPORTS_ID_FACTORY++;
-	var reportTimeout = setTimeout(function(){
+	//var reportTimeout = setTimeout(function(){
 		if(!confirmedReportsIds[reportId]){
 			guaranteedReports[reportId] = {
 				uuid:uuid,
@@ -255,7 +255,7 @@ var reportToSingleListener = function(uuid, event, data){
 				data:data
 			}
 		}		
-	}, 3000);
+	//}, 3000);
 	
 
 	if(!listeners[event][uuid]) return;
@@ -264,7 +264,7 @@ var reportToSingleListener = function(uuid, event, data){
 	listeners[event][uuid].socket.emit(event, data, function(data){
 		// if this runs, we are sure the message was received
 		confirmedReportsIds[reportId] = true;
-		clearTimeout(reportTimeout);
+		//clearTimeout(reportTimeout);
 		if(guaranteedReports[reportId]) 
 			delete guaranteedReports[reportId];
 		
