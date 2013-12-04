@@ -201,7 +201,7 @@ var clearGuaranteedReports = function(){
 	console.log(guaranteedReports, confirmedReportsIds);
 	for(var reportId in guaranteedReports){
 		var report = guaranteedReports[reportId];
-		if(!confirmedReportsIds) 
+		if(!confirmedReportsIds[reportId]) 
 			reportToSingleListener(report.uuid, report.event, report.data);
 		delete guaranteedReports[reportId];
 	}
@@ -263,6 +263,7 @@ var reportToSingleListener = function(uuid, event, data){
 
 	listeners[event][uuid].socket.emit(event, data, function(data){
 		// if this runs, we are sure the message was received
+		console.log('Guaranteed report: ')
 		confirmedReportsIds[reportId] = true;
 		//clearTimeout(reportTimeout);
 		if(guaranteedReports[reportId]) 
