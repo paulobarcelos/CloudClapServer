@@ -263,7 +263,7 @@ var reportToSingleListener = function(uuid, event, data){
 
 	listeners[event][uuid].socket.emit(event, data, function(data){
 		// if this runs, we are sure the message was received
-		console.log('Guaranteed report: ')
+		console.log('Report delivered to: ', data)
 		confirmedReportsIds[reportId] = true;
 		//clearTimeout(reportTimeout);
 		if(guaranteedReports[reportId]) 
