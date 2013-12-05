@@ -43,7 +43,7 @@ var InteractionModel = mongoose.model('Interaction', InteractionSchema);
 //InteractionModel.remove({}, function(err) {});
 
 
-var Client = function(uuid, listens, reports) {
+var Client = function(uuid, listens, reports, clientsRegistry) {
 	var self = this,
 	socket;
 
@@ -96,6 +96,7 @@ var Client = function(uuid, listens, reports) {
 	}
 	var onDBReady = function (_uuid) {
 		uuid = _uuid;
+		clientsRegistry[uuid] = self;
 		if(socket) onLogin();
 	}
 	var onConnect = function() {
@@ -137,6 +138,10 @@ var INTERACTION_EVENTS = {
 	'announcement': true,
 	'gift': true
 }
+var GUARANTEED_REPORT_EVENTS = {
+	'announcement': true,
+	'gift': true
+}
 
 var clients = {};
 var listeners = {};
@@ -146,12 +151,11 @@ var GUARANTEED_REPORTS_ID_FACTORY = 1;
 
 io.sockets.on('connection', function (socket) {
 	socket.on('identity', function(data) {
+		console.log(clients)
 		console.log('identity', data);
 		var client = clients[data.uuid];
-		if(!client) client = new Client(data.uuid, data.listens, data.reports);
-		
+		if(!client) client = new Client(data.uuid, data.listens, data.reports, clients);
 		client.socket = socket;
-		clients[client.uuid] = client;
 
 
 		for (var i = data.listens.length - 1; i >= 0; i--) {
@@ -187,11 +191,17 @@ io.sockets.on('connection', function (socket) {
 	socket.on('interaction-query-count', function(query, acknowledgement) {
 		queryCountModel('interaction-query-count', socket, InteractionModel, query, acknowledgement);
 	});
+	socket.on('interaction-query-distinct', function(data, acknowledgement) {
+		queryDistinctModel(data.field, 'interaction-query-distinct', socket, InteractionModel, data.query, acknowledgement);
+	});
 	socket.on('client-query', function(query, acknowledgement) {
 		queryModel('interaction-query', socket, ClientModel, query, acknowledgement);
 	});
 	socket.on('client-query-count', function(query) {
 		queryCountModel('client-query-count', socket, ClientModel, query, acknowledgement);
+	});
+	socket.on('client-query-distinct', function(data, acknowledgement) {
+		queryDistinctModel(data.field, 'client-query-distinct', socket, ClientModel, data.query, acknowledgement);
 	});
 
 	
@@ -201,9 +211,12 @@ var clearGuaranteedReports = function(){
 	console.log(guaranteedReports, confirmedReportsIds);
 	for(var reportId in guaranteedReports){
 		var report = guaranteedReports[reportId];
-		if(!confirmedReportsIds[reportId]) 
-			reportToSingleListener(report.uuid, report.event, report.data);
-		delete guaranteedReports[reportId];
+		if(confirmedReportsIds[reportId]) {
+			delete guaranteedReports[reportId];
+		}
+		else{
+			guaranteedReportToSingleListener(report.uuid, report.event, report.data, reportId)
+		}
 	}
 	setTimeout(clearGuaranteedReports, 10000);
 }
@@ -235,37 +248,55 @@ var queryCountModel = function(event, socket, Model, query, acknowledgement){
 		}
 	});
 }
+var queryDistinctModel = function(field, event, socket, Model, query, acknowledgement){
+	if(!query) query = {};
+	Model.distinct(field, query, function (err, results) {
+		if(!err && results ){
+			console.log('MONGOOSE: query distinct success', field, query);
+			socket.emit(event, results)
+			if(acknowledgement) acknowledgement(results);
+		}
+		else{
+			console.log('MONGOOSE: query distinct error', field, query);
+		}
+	});
+}
 var reportToAllListeners = function(event, data){
 	if(!listeners[event]) return;
 	for(var uuid in listeners[event]){
-		if(!listeners[event][uuid]) continue;
-		if(!listeners[event][uuid].socket) continue;
-		listeners[event][uuid].socket.emit(event, data);
+		reportToSingleListener(uuid, event, data);
 	}
 }
 var reportToSingleListener = function(uuid, event, data){
+	if(GUARANTEED_REPORT_EVENTS[event]) return guaranteedReportToSingleListener(uuid, event, data);
 	if(!listeners[event]) return;
-
-	var reportId = GUARANTEED_REPORTS_ID_FACTORY++;
-	//var reportTimeout = setTimeout(function(){
-		if(!confirmedReportsIds[reportId]){
-			guaranteedReports[reportId] = {
-				uuid:uuid,
-				event:event,
-				data:data
-			}
-		}		
-	//}, 3000);
-	
-
 	if(!listeners[event][uuid]) return;
+	if(!listeners[event][uuid].socket) return;
+
+	listeners[event][uuid].socket.emit(event, data);
+}
+var guaranteedReportToSingleListener = function(uuid, event, data, reportId){
+	if(!listeners[event]) return;
+	if(!listeners[event][uuid]) return;
+
+	reportId = reportId || GUARANTEED_REPORTS_ID_FACTORY++;
+	if(confirmedReportsIds[reportId]){
+		if(guaranteedReports[reportId]) delete guaranteedReports[reportId];
+		return;
+	}
+	else{
+		guaranteedReports[reportId] = {
+			uuid:uuid,
+			event:event,
+			data:data
+		}
+	}
+
 	if(!listeners[event][uuid].socket) return;
 
 	listeners[event][uuid].socket.emit(event, data, function(data){
 		// if this runs, we are sure the message was received
-		console.log('Report delivered to: ', data)
 		confirmedReportsIds[reportId] = true;
-		//clearTimeout(reportTimeout);
 		if(guaranteedReports[reportId]) 
 			delete guaranteedReports[reportId];
 		
