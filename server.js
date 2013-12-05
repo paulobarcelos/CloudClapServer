@@ -208,7 +208,7 @@ io.sockets.on('connection', function (socket) {
 });
 
 var clearGuaranteedReports = function(){
-	console.log(guaranteedReports, confirmedReportsIds);
+	//console.log(guaranteedReports, confirmedReportsIds);
 	for(var reportId in guaranteedReports){
 		var report = guaranteedReports[reportId];
 		if(confirmedReportsIds[reportId]) {
@@ -226,12 +226,12 @@ var queryModel = function(event, socket, Model, query, acknowledgement){
 	if(!query) query = {};
 	Model.find(query, function (err, results) {
 		if(!err && results ){
-			console.log('MONGOOSE: query success', query);
+			//console.log('MONGOOSE: query success', query);
 			socket.emit(event, results)
 			if(acknowledgement) acknowledgement(results);
 		}
 		else{
-			console.log('MONGOOSE: query error', query);
+			//console.log('MONGOOSE: query error', query);
 		}
 	});
 }
