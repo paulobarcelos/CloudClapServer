@@ -235,14 +235,15 @@ var clearGuaranteedReports = function(){
 	//console.log(guaranteedReports, confirmedReportsIds);
 	for(var reportId in guaranteedReports){
 		var report = guaranteedReports[reportId];
-		if(confirmedReportsIds[reportId]) {
+		if(confirmedReportsIds[reportId] || report.attempts > 240) {
 			delete guaranteedReports[reportId];
 		}
 		else{
+			report.attempts++;
 			guaranteedReportToSingleListener(report.uuid, report.event, report.data, reportId)
 		}
 	}
-	setTimeout(clearGuaranteedReports, 10000);
+	setTimeout(clearGuaranteedReports, 30000);
 }
 clearGuaranteedReports();
 
@@ -287,7 +288,6 @@ var queryDistinctModel = function(event, socket, Model, field, query, acknowledg
 }
 var reportToAllListeners = function(event, data){
 	if(!listeners[event]) return;
-	console.log(listeners[event])
 	for(var uuid in listeners[event]){
 		reportToSingleListener(uuid, event, data);
 	}
@@ -313,7 +313,8 @@ var guaranteedReportToSingleListener = function(uuid, event, data, reportId){
 		guaranteedReports[reportId] = {
 			uuid:uuid,
 			event:event,
-			data:data
+			data:data,
+			attempts: 0
 		}
 	}
 
