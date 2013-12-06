@@ -1,3 +1,10 @@
+if(process.env.NODETIME_ACCOUNT_KEY) {
+  require('nodetime').profile({
+    accountKey: process.env.NODETIME_ACCOUNT_KEY,
+    appName: 'CloudClapServer' // optional
+  });
+}
+
 var port = parseInt(process.env.PORT) || 5000;
 console.log('port ' + port);
 var io = require('socket.io').listen(parseInt(process.env.PORT) || 5000);
