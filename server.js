@@ -4,13 +4,18 @@ var io = require('socket.io').listen(parseInt(process.env.PORT) || 5000);
 io.set('log level', 1);
 var mongoose = require('mongoose');
 
-mongoose.connect(process.env.MONGOLAB_URI || process.env.MONGOHQ_URL || 'mongodb://localhost:27017/cloudclap', function (err, res) {
-	if (err) {
-		console.log ('MONGOOSE: Error connecting: ' + err);
-	} else {
-		console.log ('MONGOOSE: Succeeded to connect');
-	}
-});
+var connectMongoose = function(){
+	mongoose.connect(process.env.MONGOLAB_URI || process.env.MONGOHQ_URL || 'mongodb://localhost:27017/cloudclap', function (err, res) {
+		if (err) {
+			console.log ('MONGOOSE: Error connecting: ' + err);
+			setTimeout(connectMongoose, 3000);
+		} else {
+			console.log ('MONGOOSE: Succeeded to connect');
+		}
+	});
+}
+connectMongoose();
+
 
 var ClientSchema = new mongoose.Schema({
 	created: { 
@@ -192,16 +197,16 @@ io.sockets.on('connection', function (socket) {
 		queryCountModel('interaction-query-count', socket, InteractionModel, query, acknowledgement);
 	});
 	socket.on('interaction-query-distinct', function(data, acknowledgement) {
-		queryDistinctModel(data.field, 'interaction-query-distinct', socket, InteractionModel, data.query, acknowledgement);
+		queryDistinctModel('interaction-query-distinct', socket, InteractionModel, data.field, data.query, acknowledgement);
 	});
 	socket.on('client-query', function(query, acknowledgement) {
-		queryModel('interaction-query', socket, ClientModel, query, acknowledgement);
+		queryModel('client-query', socket, ClientModel, query, acknowledgement);
 	});
 	socket.on('client-query-count', function(query) {
 		queryCountModel('client-query-count', socket, ClientModel, query, acknowledgement);
 	});
 	socket.on('client-query-distinct', function(data, acknowledgement) {
-		queryDistinctModel(data.field, 'client-query-distinct', socket, ClientModel, data.query, acknowledgement);
+		queryDistinctModel('client-query-distinct', socket, ClientModel, data.field, data.query, acknowledgement);
 	});
 
 	
@@ -248,7 +253,7 @@ var queryCountModel = function(event, socket, Model, query, acknowledgement){
 		}
 	});
 }
-var queryDistinctModel = function(field, event, socket, Model, query, acknowledgement){
+var queryDistinctModel = function(event, socket, Model, field, query, acknowledgement){
 	if(!query) query = {};
 	Model.distinct(field, query, function (err, results) {
 		if(!err && results ){
