@@ -55,7 +55,7 @@ var InteractionModel = mongoose.model('Interaction', InteractionSchema);
 //InteractionModel.remove({}, function(err) {});
 
 
-var Client = function(uuid, listens, reports, clientsRegistry) {
+var Client = function(uuid, listens, reports, clientsRegistry, onDBReadyCallback) {
 	var self = this,
 	socket;
 
@@ -110,6 +110,7 @@ var Client = function(uuid, listens, reports, clientsRegistry) {
 		uuid = _uuid;
 		clientsRegistry[uuid] = self;
 		if(socket) onLogin();
+		if(onDBReadyCallback) onDBReadyCallback(self);
 	}
 	var onConnect = function() {
 		if(uuid) onLogin();
@@ -162,39 +163,50 @@ var confirmedReportsIds = {};
 var GUARANTEED_REPORTS_ID_FACTORY = 1;
 
 io.sockets.on('connection', function (socket) {
-	socket.on('identity', function(data) {
-		console.log(clients)
-		console.log('identity', data);
-		var client = clients[data.uuid];
-		if(!client) client = new Client(data.uuid, data.listens, data.reports, clients);
-		client.socket = socket;
+	socket.on('identity', function(indentityData) {
+		console.log('identity', indentityData);
 
+		var registerClientEvents = function(){
+			for (var i = 0; i < indentityData.listens.length; i++) {
+				var event = indentityData.listens[i];
+				if(!listeners[event]) listeners[event] = {};
+				listeners[event][client.uuid] = client;
+			};
 
-		for (var i = data.listens.length - 1; i >= 0; i--) {
-			var event = data.listens[i];
-			if(!listeners[event]) listeners[event] = {};
-			listeners[event][client.uuid] = client;
-		};
+			for (var i = 0; i < indentityData.reports.length; i++) {
+				(function(event){
+					socket.on(event, function(data){
+						if(!data) data = {};
+						data.from = client.uuid;
 
-		for (var i = data.reports.length - 1; i >= 0; i--) {
-			(function(){
-				var event = data.reports[i];
-				socket.on(event, function(data){
-					if(!data) data = {};
-					data.from = client.uuid;
+						if(data.to){
+							for (var i = 0; i <  data.to.length; i++) {
+								reportToSingleListener(data.to[i], event, data);
+							};
+						}
+						else reportToAllListeners(event, data);
 
-					if(data.to){
-						for (var i = data.to.length - 1; i >= 0; i--) {
-							reportToSingleListener(data.to[i], event, data);
-						};
-					}
-					else reportToAllListeners(event, data);
+						if(INTERACTION_EVENTS[event]) storeInteraction(event, data);
+					});
+				})(indentityData.reports[i]);
+				
+			};
+		}
 
-					if(INTERACTION_EVENTS[event]) storeInteraction(event, data);
-				});
-			})();
-			
-		};
+		var client;
+		if(data.uuid){
+			client = clients[data.uuid];
+		}
+		if(client){
+			client.socket = socket;
+			registerClientEvents();
+		}
+		else{
+			client = new Client(data.uuid, data.listens, data.reports, clients, registerClientEvents);
+			client.socket = socket;
+		}
+		
+
 	});
 
 	socket.on('interaction-query', function(query, acknowledgement) {
@@ -275,6 +287,7 @@ var queryDistinctModel = function(event, socket, Model, field, query, acknowledg
 }
 var reportToAllListeners = function(event, data){
 	if(!listeners[event]) return;
+	console.log(listeners[event])
 	for(var uuid in listeners[event]){
 		reportToSingleListener(uuid, event, data);
 	}
