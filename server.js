@@ -194,15 +194,15 @@ io.sockets.on('connection', function (socket) {
 		}
 
 		var client;
-		if(data.uuid){
-			client = clients[data.uuid];
+		if(indentityData.uuid){
+			client = clients[indentityData.uuid];
 		}
 		if(client){
 			client.socket = socket;
 			registerClientEvents();
 		}
 		else{
-			client = new Client(data.uuid, data.listens, data.reports, clients, registerClientEvents);
+			client = new Client(indentityData.uuid, indentityData.listens, indentityData.reports, clients, registerClientEvents);
 			client.socket = socket;
 		}
 		
