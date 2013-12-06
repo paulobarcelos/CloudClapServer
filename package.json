@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "dependencies": {
     "socket.io": "x",
-    "mongoose": "x"
+    "mongoose": "x",
+    "nodetime": "x"
   }
 }
