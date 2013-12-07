@@ -155,12 +155,19 @@ var GUARANTEED_REPORT_EVENTS = {
 	'announcement': true,
 	'gift': true
 }
+var VOLATILE_EVENTS = {
+	'clap': true,
+	'wow': true,
+	'booh': true
+}
 
 var clients = {};
 var listeners = {};
 var guaranteedReports = {};
 var confirmedReportsIds = {};
 var GUARANTEED_REPORTS_ID_FACTORY = 1;
+var volatileEventsCount = 0;
+var volatileEventsPerSecond = 0;
 
 io.sockets.on('connection', function (socket) {
 	socket.on('identity', function(indentityData) {
@@ -176,6 +183,8 @@ io.sockets.on('connection', function (socket) {
 			for (var i = 0; i < indentityData.reports.length; i++) {
 				(function(event){
 					socket.on(event, function(data){
+
+
 						if(!data) data = {};
 						data.from = client.uuid;
 
@@ -230,6 +239,13 @@ io.sockets.on('connection', function (socket) {
 
 	
 });
+
+var measureVolatileEventsSpeed = function(){
+	volatileEventsPerSecond = volatileEventsCount;
+	volatileEventsCount = 0;
+	console.log(volatileEventsPerSecond);
+}
+setInterval(measureVolatileEventsSpeed, 1000);
 
 var clearGuaranteedReports = function(){
 	//console.log(guaranteedReports, confirmedReportsIds);
@@ -294,39 +310,44 @@ var reportToAllListeners = function(event, data){
 }
 var reportToSingleListener = function(uuid, event, data){
 	if(GUARANTEED_REPORT_EVENTS[event]) return guaranteedReportToSingleListener(uuid, event, data);
-	if(!listeners[event]) return;
-	if(!listeners[event][uuid]) return;
-	if(!listeners[event][uuid].socket) return;
+	try{
+		listeners[event][uuid].socket.emit(event, data);	
+	}
+	catch(e){
+		console.log(e);
+	}
 
-	listeners[event][uuid].socket.emit(event, data);
+	
 }
 var guaranteedReportToSingleListener = function(uuid, event, data, reportId){
-	if(!listeners[event]) return;
-	if(!listeners[event][uuid]) return;
+	try{
 
-	reportId = reportId || GUARANTEED_REPORTS_ID_FACTORY++;
-	if(confirmedReportsIds[reportId]){
-		if(guaranteedReports[reportId]) delete guaranteedReports[reportId];
-		return;
-	}
-	else{
-		guaranteedReports[reportId] = {
-			uuid:uuid,
-			event:event,
-			data:data,
-			attempts: 0
+		reportId = reportId || GUARANTEED_REPORTS_ID_FACTORY++;
+		if(confirmedReportsIds[reportId]){
+			if(guaranteedReports[reportId]) delete guaranteedReports[reportId];
+			return;
 		}
+		else{
+			guaranteedReports[reportId] = {
+				uuid:uuid,
+				event:event,
+				data:data,
+				attempts: 0
+			}
+		}
+
+		listeners[event][uuid].socket.emit(event, data, function(data){
+			// if this runs, we are sure the message was received
+			confirmedReportsIds[reportId] = true;
+			if(guaranteedReports[reportId]) 
+				delete guaranteedReports[reportId];
+			
+		});
+	}
+	catch(e){
+		console.log(e);
 	}
 
-	if(!listeners[event][uuid].socket) return;
-
-	listeners[event][uuid].socket.emit(event, data, function(data){
-		// if this runs, we are sure the message was received
-		confirmedReportsIds[reportId] = true;
-		if(guaranteedReports[reportId]) 
-			delete guaranteedReports[reportId];
-		
-	});
 }
 var storeInteraction = function(event, data){
 	var model = new InteractionModel({
