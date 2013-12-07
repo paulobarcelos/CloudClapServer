@@ -184,6 +184,9 @@ io.sockets.on('connection', function (socket) {
 				(function(event){
 					socket.on(event, function(data){
 
+						if(VOLATILE_EVENTS[event]){
+							volatileEventsCount ++;
+						}
 
 						if(!data) data = {};
 						data.from = client.uuid;
