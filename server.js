@@ -318,7 +318,7 @@ var reportToSingleListener = function(uuid, event, data){
 		listeners[event][uuid].socket.emit(event, data);	
 	}
 	catch(e){
-		console.log(e);
+		//console.log(e);
 	}
 
 	
@@ -349,7 +349,7 @@ var guaranteedReportToSingleListener = function(uuid, event, data, reportId){
 		});
 	}
 	catch(e){
-		console.log(e);
+		//console.log(e);
 	}
 
 }
