@@ -186,7 +186,7 @@ io.sockets.on('connection', function (socket) {
 
 						if(VOLATILE_EVENTS[event]){
 							volatileEventsCount ++;
-							if(volatileEventsPerSecond > 800) return;
+							if(volatileEventsPerSecond > 800 && volatileEventsCount > 800) return;
 						}
 
 						if(!data) data = {};
