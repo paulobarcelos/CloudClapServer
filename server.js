@@ -248,7 +248,6 @@ io.sockets.on('connection', function (socket) {
 var measureVolatileEventsSpeed = function(){
 	volatileEventsPerSecond = volatileEventsCount;
 	volatileEventsCount = 0;
-	console.log(volatileEventsPerSecond);
 }
 setInterval(measureVolatileEventsSpeed, 1000);
 
