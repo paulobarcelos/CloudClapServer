@@ -12,12 +12,13 @@ io.set('log level', 1);
 var mongoose = require('mongoose');
 
 var connectMongoose = function(){
-	mongoose.connect(process.env.MONGOLAB_URI || process.env.MONGOHQ_URL || 'mongodb://localhost:27017/cloudclap', function (err, res) {
+	var url = process.env.MONGOLAB_URI || process.env.MONGOHQ_URL || 'mongodb://localhost:27017/cloudclap';
+	mongoose.connect(url, function (err, res) {
 		if (err) {
-			console.log ('MONGOOSE: Error connecting: ' + err);
+			console.log ('MONGOOSE: Error connecting to ' + url + ' : ' + err);
 			setTimeout(connectMongoose, 3000);
 		} else {
-			console.log ('MONGOOSE: Succeeded to connect');
+			console.log ('MONGOOSE: Succeeded to connect to ' + url);
 		}
 	});
 }
